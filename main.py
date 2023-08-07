@@ -1,19 +1,16 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-# from transformers import AutoTokenizer, AutoModelForSequenceClassification
-# from scipy.special import softmax
-# from pydantic import BaseModel, typing
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from scipy.special import softmax
+from pydantic import BaseModel
+from typing import List
 # from pyabsa import ATEPCCheckpointManager
 
-# load model
-# berty = "cardiffnlp/twitter-roberta-base-sentiment"
-# model = AutoModelForSequenceClassification.from_pretrained(berty)
-# tokenizer = AutoTokenizer.from_pretrained(berty)
-# print(tokenizer.model_max_length)
-# labels = ["Negative", "Neutral", "Positive"]
-
-
+# Load Model
+berty = "cardiffnlp/twitter-roberta-base-sentiment"
+model = AutoModelForSequenceClassification.from_pretrained(berty)
+tokenizer = AutoTokenizer.from_pretrained(berty)
+labels = ["Negative", "Neutral", "Positive"]
 
 # aspect_extractor = ATEPCCheckpointManager.get_aspect_extractor(checkpoint='english', auto_device=True)
 
@@ -27,45 +24,71 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# class Item(BaseModel):
-#     input_text: str
+class Item(BaseModel):
+    inputText: str
 
-# class AspectItems(BaseModel):
-#     comments: list[str]
+class AnalyzeItem(BaseModel):
+    id: str
+    comment: str
 
+class Items(BaseModel):
+    data: List[AnalyzeItem]
 
-# class BulkItem(BaseModel):
-#     data: list[str]
-#     x: typing.Any
-
-# def find_highest_number(dictionary):
-#     max_pair = max(dictionary.items(), key=lambda x: x[1])
-#     return max_pair
+def find_highest_number(dictionary):
+    max_pair = max(dictionary.items(), key=lambda x: x[1])
+    return max_pair
 
 @app.get("/")
 def index():
-    return {"details": "Hello!"}
+    return {"status": "ok!"}
 
 
-# @app.post("/analyze/tweet")
-# def generate(item: Item):
-#     input_text = item.input_text
+@app.post("/analyze/comment")
+def generate(item: Item):
+    input_text = item.inputText
 
 
-#     encoded_tweet = tokenizer(input_text, return_tensors="pt")
-#     output = model(**encoded_tweet)
+    encoded_tweet = tokenizer(input_text, return_tensors="pt")
+    output = model(**encoded_tweet)
 
-#     scores = output[0][0].detach().numpy()
+    scores = output[0][0].detach().numpy()
 
-#     scores = softmax(scores)
+    scores = softmax(scores)
 
-#     response = {}
-#     for i in range(len(scores)):
-#         key = labels[i]
-#         value = str(scores[i])
-#         response[key] = value
-#     print(response)
-#     return response
+    response = {}
+    for i in range(len(scores)):
+        key = labels[i]
+        value = str(scores[i])
+        response[key] = value
+    print(scores)
+    return response
+
+
+@app.post("/analyze/strings")
+def generate(items: Items):
+    print(items)
+    processed_items = []
+    for item in items.data:
+        encoded_tweet = tokenizer(item.comment, return_tensors="pt")
+        output = model(**encoded_tweet)
+        scores = output[0][0].detach().numpy()
+        scores = softmax(scores)
+
+        current_sentiment = {}
+
+        for i in range(len(scores)):
+            key = labels[i]
+            value = str(scores[i])
+            current_sentiment[key] = value
+
+        (sentiment, value) = find_highest_number(current_sentiment)
+        # Add sentiment to object that was analyzed
+        modified_item = {
+            **item.dict(),
+            "sentiment": sentiment
+        }
+        processed_items.append(modified_item)
+    return processed_items
 
 
 # @app.post("/analyze/tweet-bulk")
@@ -76,9 +99,9 @@ def index():
 #         trimmed_text =  comment.get("comment")[0:512]
 
 #         encoded_tweet = tokenizer(trimmed_text, return_tensors="pt")
-#         output = model(**encoded_tweet)
-#         scores = output[0][0].detach().numpy()
-#         scores = softmax(scores)
+        # output = model(**encoded_tweet)
+        # scores = output[0][0].detach().numpy()
+        # scores = softmax(scores)
                 
 #         current_sentiment = {}
             
