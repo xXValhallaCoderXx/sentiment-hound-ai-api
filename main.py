@@ -29,7 +29,7 @@ class Item(BaseModel):
 
 class AnalyzeItem(BaseModel):
     id: str
-    comment: str
+    content: str
 
 class Items(BaseModel):
     data: List[AnalyzeItem]
@@ -69,7 +69,8 @@ def generate(items: Items):
     print(items)
     processed_items = []
     for item in items.data:
-        encoded_tweet = tokenizer(item.comment, return_tensors="pt")
+        trimmed_text =  item.content[0:512]
+        encoded_tweet = tokenizer(trimmed_text, return_tensors="pt")
         output = model(**encoded_tweet)
         scores = output[0][0].detach().numpy()
         scores = softmax(scores)
